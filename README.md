@@ -1,14 +1,14 @@
-### serde_yaml2
+# serde_yaml2
 
 This crate provides serde integration for [serde_yaml2](https://github.com/Ethiraric/yaml-rust2/)
 
 
-##### Usage
+## Usage
 
 See [examples](examples) dir for usage examples
 
 
-##### Enum representation
+## Enum representation
 
 Enums are represented using external tagging. For example:
 
