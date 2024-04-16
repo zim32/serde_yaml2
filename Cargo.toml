@@ -1,0 +1,14 @@
+[package]
+name = "serde_yaml2"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yurij Uvarov <yurij.uvarov@gmail.com>"]
+categories = ["encoding"]
+description = "Serde integration for yaml_rust2 crate"
+keywords = ["yaml", "serde", "serialization", "deserialization"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+serde = { version = "1.0.197", features = ["serde_derive"] }
+thiserror = "1.0.58"
+yaml-rust2 = "0.8.0"
