@@ -201,6 +201,7 @@ impl<'a, 'se> SerializeStructVariant for MapSerializer<'a, 'se> {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
+        self.ser.decr_level();
         self.process_end()
     }
 }
@@ -417,8 +418,11 @@ impl<'a, 'se> Serializer for &'a mut YamlSerializer<'se> {
         self.serialize_map(Some(len))
     }
 
-    fn serialize_struct_variant(self, _name: &'static str, _variant_index: u32, variant: &'static str, len: usize) -> Result<Self::SerializeStructVariant, Self::Error> {
-        self.serialize_struct(variant, len)
+    fn serialize_struct_variant(self, name: &'static str, _variant_index: u32, variant: &'static str, len: usize) -> Result<Self::SerializeStructVariant, Self::Error> {
+        write!(self.writer, "{}:\n", variant)?;
+        self.incr_level();
+        write_indent(self.level, self.writer)?;
+        self.serialize_struct(name, len)
     }
 }
 
@@ -516,7 +520,7 @@ mod test {
         test!(TestEnum::VariantB(), "VariantB: []");
         test!(TestEnum::VariantC(3000, String::from("Hello world")), "VariantC:\n  - \n   3000\n  - \n   'Hello world'\n  ");
         test!(TestEnum::VariantD(TestStruct { x: 1, y: String::from("Hello world") }), "VariantD:\n  'x':\n   1\n  'y':\n   'Hello world'\n  ");
-        test!(TestEnum::VariantE { x: 45.0, y: false }, "'x':\n  45\n'y':\n  false\n");
+        test!(TestEnum::VariantE { x: 45.0, y: false }, "VariantE:\n  'x':\n   45\n  'y':\n   false\n  ");
 
         // nested struct
         #[derive(Serialize, Debug)]
@@ -539,7 +543,7 @@ mod test {
             i: true,
             b: TestEnum::VariantE { x: 12.321, y: true },
             u: (555, String::from("Hello world"), false),
-        }, "'x':\n  123\n'nested':\n  'x':\n   321\n  'y':\n   'Hello world'\n  \n'y':\n  VariantD:\n   'x':\n    444\n   'y':\n    |-\n     Hello\n     world\n   \n'z':\n  - \n   1\n  - \n   2\n  - \n   3\n  \n'i':\n  true\n'b':\n  'x':\n   12.321\n  'y':\n   true\n  \n'u':\n  - \n   555\n  - \n   'Hello world'\n  - \n   false\n  \n");
+        }, "'x':\n  123\n'nested':\n  'x':\n   321\n  'y':\n   'Hello world'\n  \n'y':\n  VariantD:\n   'x':\n    444\n   'y':\n    |-\n     Hello\n     world\n   \n'z':\n  - \n   1\n  - \n   2\n  - \n   3\n  \n'i':\n  true\n'b':\n  VariantE:\n   'x':\n    12.321\n   'y':\n    true\n   \n'u':\n  - \n   555\n  - \n   'Hello world'\n  - \n   false\n  \n");
 
         {
             type Map = std::collections::BTreeMap<String, i32>;
