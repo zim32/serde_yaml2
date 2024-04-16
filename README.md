@@ -6,3 +6,28 @@ This crate provides serde integration for [serde_yaml2](https://github.com/Ethir
 ##### Usage
 
 See [examples](examples) dir for usage examples
+
+
+##### Enum representation
+
+Enums are represented using external tagging. For example:
+
+````rust
+#[derive(Serialize, Debug, PartialEq)]
+enum TestEnum {
+    VariantA,
+    VariantB(i32, f64),
+}
+````
+
+will be represented as:
+
+````
+VariantA: ~
+````
+
+or 
+
+````
+VariantB: [1, 4.5]
+````
