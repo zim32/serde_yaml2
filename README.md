@@ -31,3 +31,11 @@ or
 ````
 VariantB: [1, 4.5]
 ````
+
+## Running tests
+
+Just execute 
+
+````
+cargo test
+````
