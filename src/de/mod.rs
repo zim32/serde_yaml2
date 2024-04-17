@@ -102,14 +102,14 @@ impl<'de, 'a> VariantAccess<'de> for EventsSequenceAccess<'a, 'de> {
                 if value == "null" || value == "~" {
                     Ok(())
                 } else {
-                    Err(Self::Error::custom(format!("Unexpected scalar value at position {}. Expected '~' or 'null', got: {:?}", self.deserializer.marker_to_string(&marker), value)))
+                    Err(Errors::unexpected_scalar_value_error("'~' or 'null'", &value, marker).into())
                 }
             },
             Ok((event, marker)) => {
-                Err(Self::Error::custom(format!("Unexpected event at position {}. Expected scalar, got: {:?}", self.deserializer.marker_to_string(&marker), event)))
+                Err(Errors::unexpected_event_error("Scalar", event, marker).into())
             },
             Err(scan_error) => {
-                Err(Self::Error::custom(format!("Scan error at position {}", self.deserializer.marker_to_string(&scan_error.marker()))))
+                Err(Errors::scan_error(*scan_error.marker()).into())
             },
         }
     }
@@ -152,10 +152,10 @@ macro_rules! deserialize_number {
                 return $visitor.$visit(value.parse().unwrap());
             },
             Ok((event, marker)) => {
-                Err(Self::Error::custom(format!("Unexpected event at position {}. Expected plain scalar, got: {:?}", $self.marker_to_string(&marker), event)))
+                Err(Errors::unexpected_event_error("Scalar", event, marker).into())
             },
             Err(scan_error) => {
-                Err(Self::Error::custom(format!("Scan error at position {}", $self.marker_to_string(&scan_error.marker()))))
+                Err(Errors::scan_error(*scan_error.marker()).into())
             },
         }
     }
@@ -181,10 +181,6 @@ impl<'de> YamlDeserializer<'de> {
         YamlDeserializer {
             parser
         }
-    }
-
-    fn marker_to_string(&self, marker: &Marker) -> String {
-        format!("Line: {}, Column: {}, Index: {}", marker.line(), marker.col(), marker.index())
     }
 }
 
@@ -228,9 +224,6 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                             Err(Self::Error::custom("Expected SequenceEnd event"))
                         }
                     },
-                    Event::SequenceEnd => {
-                        Err(Self::Error::custom("Unexpected SequenceEnd event"))
-                    },
                     Event::MappingStart(_, _) => {
                         let value = visitor.visit_map(EventsSequenceAccess { deserializer: self }).unwrap();
 
@@ -245,6 +238,9 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                                 Err(Errors::scan_error(*scan_error.marker()).into())
                             },
                         }
+                    },
+                    Event::SequenceEnd => {
+                        Err(Self::Error::custom("Unexpected SequenceEnd event"))
                     },
                     Event::MappingEnd => {
                         Err(Self::Error::custom("Unexpected MappingEnd event"))
