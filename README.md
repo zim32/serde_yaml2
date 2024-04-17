@@ -1,6 +1,6 @@
 # serde_yaml2
 
-This crate provides serde integration for [serde_yaml2](https://github.com/Ethiraric/yaml-rust2/)
+This crate provides serde integration for [yaml-rust2](https://github.com/Ethiraric/yaml-rust2/)
 
 
 ## Usage
