@@ -4,6 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::ser::{SerializeMap, SerializeSeq};
 use yaml_rust2::Yaml;
 use yaml_rust2::yaml::Hash;
+use serde::ser::Error as _;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct YamlNodeWrapper(Yaml);
@@ -118,7 +119,10 @@ impl Serialize for YamlNodeWrapper {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
         match &self.0 {
             Yaml::Real(v) => {
-                serializer.serialize_f64(v.parse().unwrap())
+                let Ok(parsed) = v.parse() else {
+                    return Err(S::Error::custom("Can not parse real number"));
+                };
+                serializer.serialize_f64(parsed)
             },
             Yaml::Integer(v) => {
                 serializer.serialize_i64(*v)
@@ -130,20 +134,20 @@ impl Serialize for YamlNodeWrapper {
                 serializer.serialize_bool(*v)
             },
             Yaml::Array(v) => {
-                let mut seq = serializer.serialize_seq(Some(v.len())).unwrap();
+                let mut seq = serializer.serialize_seq(Some(v.len()))?;
 
                 for el in v {
-                    seq.serialize_element(&YamlNodeWrapper(el.clone())).unwrap();
+                    seq.serialize_element(&YamlNodeWrapper(el.clone()))?;
                 }
 
                 seq.end()
             },
             Yaml::Hash(v) => {
-                let mut map = serializer.serialize_map(Some(v.len())).unwrap();
+                let mut map = serializer.serialize_map(Some(v.len()))?;
 
                 for (k, v) in v {
-                    map.serialize_key(&YamlNodeWrapper(k.clone())).unwrap();
-                    map.serialize_value(&YamlNodeWrapper(v.clone())).unwrap();
+                    map.serialize_key(&YamlNodeWrapper(k.clone()))?;
+                    map.serialize_value(&YamlNodeWrapper(v.clone()))?;
                 }
 
                 map.end()

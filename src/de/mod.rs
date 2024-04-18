@@ -8,7 +8,7 @@ use thiserror::Error;
 use yaml_rust2::scanner::{Marker, TScalarStyle};
 
 pub fn from_str<'de, T: Deserialize<'de>>(data: &'de str) -> Result<T, serde::de::value::Error> {
-    let deserializer = &mut YamlDeserializer::from_str(data);
+    let deserializer = &mut YamlDeserializer::from_str(data)?;
     T::deserialize(deserializer)
 }
 
@@ -29,6 +29,8 @@ enum Errors<'a> {
     UnexpectedEventError(&'a str, Event, MarkerWrapper),
     #[error("Scan error at position {0}")]
     ScanError(MarkerWrapper),
+    #[error("Error while parsing scalar {0} into number")]
+    ParseNumberError(&'a str),
 }
 
 impl<'a> Errors<'a> {
@@ -42,6 +44,10 @@ impl<'a> Errors<'a> {
 
     fn scan_error(marker: Marker) -> Self {
         Errors::ScanError(MarkerWrapper(marker))
+    }
+
+    fn parse_number_error(value: &'a str) -> Self {
+        Errors::ParseNumberError(value)
     }
 }
 
@@ -88,7 +94,7 @@ impl<'de, 'a> EnumAccess<'de> for EventsSequenceAccess<'a, 'de> {
     type Variant = Self;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error> where V: DeserializeSeed<'de> {
-        let value = seed.deserialize(&mut *self.deserializer).unwrap();
+        let value = seed.deserialize(&mut *self.deserializer)?;
         Ok((value, self))
     }
 }
@@ -146,10 +152,13 @@ impl<'de, 'a, Y: Iterator<Item = Yaml>> SeqAccess<'de> for YamlValueAccess<'a, '
 }
 
 macro_rules! deserialize_number {
-    ($self:ident, $visitor:ident, $visit:ident) => {
+    ($self:ident, $visitor:ident, $visit:ident, $type:ty) => {
         match $self.parser.next_token() {
             Ok((Event::Scalar(value, TScalarStyle::Plain, ..), ..), ..) => {
-                return $visitor.$visit(value.parse().unwrap());
+                let Ok(parsed) = value.parse::<$type>() else {
+                    return Err(Errors::parse_number_error(&value).into());
+                };
+                return $visitor.$visit(parsed);
             },
             Ok((event, marker)) => {
                 Err(Errors::unexpected_event_error("Scalar", event, marker).into())
@@ -166,21 +175,21 @@ pub struct YamlDeserializer<'de> {
 }
 
 impl<'de> YamlDeserializer<'de> {
-    pub fn from_str(data: &'de str) -> Self {
+    pub fn from_str(data: &'de str) -> Result<Self, serde::de::value::Error> {
         let mut parser = Parser::new_from_str(data);
 
         // skip stream and doc events
         if let Ok((Event::StreamStart, ..)) = parser.peek() {
-            parser.next_token().unwrap();
+            parser.next_token().map_err(|e| Errors::scan_error(*e.marker()).into())?;
 
             if let Ok((Event::DocumentStart, ..)) = parser.peek() {
-                parser.next_token().unwrap();
+                parser.next_token().map_err(|e| Errors::scan_error(*e.marker()).into())?;
             }
         }
 
-        YamlDeserializer {
+        Ok(YamlDeserializer {
             parser
-        }
+        })
     }
 }
 
@@ -196,7 +205,10 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
 
                         match yaml_node {
                             Yaml::Real(v) => {
-                                visitor.visit_f64(v.parse().unwrap())
+                                let Ok(parsed) = v.parse() else {
+                                    return Err(Errors::parse_number_error(&v).into());
+                                };
+                                visitor.visit_f64(parsed)
                             },
                             Yaml::Integer(v) => {
                                 visitor.visit_i64(v)
@@ -216,7 +228,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                         }
                     },
                     Event::SequenceStart(_, _) => {
-                        let value = visitor.visit_seq(EventsSequenceAccess { deserializer: self }).unwrap();
+                        let value = visitor.visit_seq(EventsSequenceAccess { deserializer: self })?;
 
                         if let Ok((Event::SequenceEnd, ..), ..) = self.parser.next_token() {
                             Ok(value)
@@ -225,7 +237,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                         }
                     },
                     Event::MappingStart(_, _) => {
-                        let value = visitor.visit_map(EventsSequenceAccess { deserializer: self }).unwrap();
+                        let value = visitor.visit_map(EventsSequenceAccess { deserializer: self })?;
 
                         match self.parser.next_token() {
                             Ok((Event::MappingEnd, ..), ..) => {
@@ -296,43 +308,43 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_i8)
+        deserialize_number!(self, visitor, visit_i8, i8)
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_i16)
+        deserialize_number!(self, visitor, visit_i16, i16)
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_i32)
+        deserialize_number!(self, visitor, visit_i32, i32)
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_i64)
+        deserialize_number!(self, visitor, visit_i64, i64)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_u8)
+        deserialize_number!(self, visitor, visit_u8, u8)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_u16)
+        deserialize_number!(self, visitor, visit_u16, u16)
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_u32)
+        deserialize_number!(self, visitor, visit_u32, u32)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_u64)
+        deserialize_number!(self, visitor, visit_u64, u64)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_f32)
+        deserialize_number!(self, visitor, visit_f32, f32)
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        deserialize_number!(self, visitor, visit_f64)
+        deserialize_number!(self, visitor, visit_f64, f64)
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
@@ -341,7 +353,10 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                 if value.len() != 1 {
                     Err(Errors::unexpected_scalar_value_error("String with length 1", &value, marker).into())
                 } else {
-                    return visitor.visit_char(value.chars().next().unwrap());
+                    let Some(char) = value.chars().next() else {
+                        return Err(Errors::unexpected_scalar_value_error("String with single char", &value, marker).into());
+                    };
+                    visitor.visit_char(char)
                 }
             },
             Ok((event, marker)) => {
@@ -427,7 +442,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.next_token() {
             Ok((Event::SequenceStart(..), ..), ..) => {
-                let value = visitor.visit_seq(EventsSequenceAccess { deserializer: self }).unwrap();
+                let value = visitor.visit_seq(EventsSequenceAccess { deserializer: self })?;
 
                 if let Ok((Event::SequenceEnd, ..), ..) = self.parser.next_token() {
                     Ok(value)
@@ -455,7 +470,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.next_token() {
             Ok((Event::MappingStart(..), ..), ..) => {
-                let value = visitor.visit_map(EventsSequenceAccess { deserializer: self }).unwrap();
+                let value = visitor.visit_map(EventsSequenceAccess { deserializer: self })?;
 
                 match self.parser.next_token() {
                     Ok((Event::MappingEnd, ..), ..) => {
@@ -485,7 +500,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
     fn deserialize_enum<V>(self, _name: &'static str, _variants: &'static [&'static str], visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.next_token() {
             Ok((Event::MappingStart(..), ..), ..) => {
-                let value = visitor.visit_enum(EventsSequenceAccess { deserializer: self }).unwrap();
+                let value = visitor.visit_enum(EventsSequenceAccess { deserializer: self })?;
 
                 if let Ok((Event::MappingEnd, ..), ..) = self.parser.next_token() {
                     Ok(value)
@@ -522,7 +537,7 @@ mod tests {
     macro_rules! test {
         ($type:ty, $expected:expr, $data:literal) => {
             {
-                let deserializer = &mut YamlDeserializer::from_str($data);
+                let deserializer = &mut YamlDeserializer::from_str($data).unwrap();
                 let result: $type = <$type as Deserialize>::deserialize(deserializer).unwrap();
                 assert_eq!($expected, result);
             }
