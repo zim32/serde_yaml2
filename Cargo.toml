@@ -7,6 +7,8 @@ categories = ["encoding"]
 description = "Serde integration for yaml_rust2 crate"
 keywords = ["yaml", "serde", "serialization", "deserialization"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/zim32/serde_yaml2"
+readme = "README.md"
 
 [dependencies]
 serde = { version = "1.0.197", features = ["serde_derive"] }
