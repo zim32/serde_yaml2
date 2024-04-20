@@ -422,6 +422,9 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                     Err(Errors::unexpected_scalar_value_error("'null' or '~'", &value, marker).into())
                 }
             },
+            Ok((Event::StreamEnd, ..)) => {
+                visitor.visit_unit()
+            },
             Ok((event, marker)) => {
                 Err(Errors::unexpected_event_error("Scalar", event, marker).into())
             },
@@ -546,6 +549,7 @@ mod tests {
 
     #[test]
     fn should_work() {
+        test!((), (), "");
         test!((), (), "null");
         test!((), (), "~");
 
