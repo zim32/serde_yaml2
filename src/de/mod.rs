@@ -104,7 +104,7 @@ impl<'de, 'a> VariantAccess<'de> for EventsSequenceAccess<'a, 'de> {
 
     fn unit_variant(self) -> Result<(), Self::Error> {
         match self.deserializer.parser.next_token() {
-            Ok((Event::Scalar(value, _, ..), marker), ..) => {
+            Ok((Event::Scalar(value, ..), marker), ..) => {
                 if value == "null" || value == "~" {
                     Ok(())
                 } else {
@@ -357,7 +357,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.next_token() {
-            Ok((Event::Scalar(value, _, ..), ..), ..) => {
+            Ok((Event::Scalar(value, ..), ..), ..) => {
                 return visitor.visit_string(value);
             },
             Ok((event, marker)) => {
@@ -379,7 +379,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
 
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.peek() {
-            Ok((Event::Scalar(value, _, ..), ..), ..) => {
+            Ok((Event::Scalar(value, ..), ..), ..) => {
                 if value == "null" || value == "~" {
                     self.parser.next_token().map_err(|e| Errors::scan_error(*e.marker()).into())?;
                     visitor.visit_none()
@@ -388,7 +388,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                 }
             },
             Ok((event, marker)) => {
-                Err(Errors::unexpected_event_error("Scalar", event.clone(), marker.clone()).into())
+                Err(Errors::unexpected_event_error("Scalar", event.clone(), *marker).into())
             },
             Err(scan_error) => {
                 Err(Errors::scan_error(*scan_error.marker()).into())
@@ -398,7 +398,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
 
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.next_token() {
-            Ok((Event::Scalar(value, _, ..), marker), ..) => {
+            Ok((Event::Scalar(value, ..), marker), ..) => {
                 if value == "null" || value == "~" {
                     visitor.visit_unit()
                 } else {

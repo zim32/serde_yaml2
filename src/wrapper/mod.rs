@@ -111,7 +111,7 @@ impl<'de> Visitor<'de> for YamlNodeWrapperVisitor {
 
 impl<'de> Deserialize<'de> for YamlNodeWrapper {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-        deserializer.deserialize_any(YamlNodeWrapperVisitor {}).map(|i| YamlNodeWrapper(i))
+        deserializer.deserialize_any(YamlNodeWrapperVisitor {}).map(YamlNodeWrapper)
     }
 }
 
@@ -128,7 +128,7 @@ impl Serialize for YamlNodeWrapper {
                 serializer.serialize_i64(*v)
             },
             Yaml::String(v) => {
-                serializer.serialize_str(&v)
+                serializer.serialize_str(v)
             },
             Yaml::Boolean(v) => {
                 serializer.serialize_bool(*v)

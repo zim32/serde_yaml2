@@ -49,7 +49,7 @@ fn write_indent(level: i32, writer: &mut dyn Write) -> Result<(), Errors> {
 }
 
 fn escape_str(source: &str) -> String {
-    source.replace("'", r#"\'"#)
+    source.replace('\'', r#"\'"#)
 }
 
 pub struct SequenceSerializer<'a, 'se> {
@@ -58,7 +58,7 @@ pub struct SequenceSerializer<'a, 'se> {
 }
 
 impl<'a, 'se> SequenceSerializer<'a, 'se> {
-    fn process_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Errors> where T: Serialize {
+    fn process_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Errors> {
         self.ser.writer.write_str("- \n")?;
         self.ser.incr_level();
         write_indent(self.ser.level, self.ser.writer)?;
@@ -81,7 +81,7 @@ impl<'a, 'se> SerializeSeq for SequenceSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> {
         self.process_element(value)
     }
 
@@ -94,7 +94,7 @@ impl<'a, 'se> SerializeTuple for SequenceSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_element<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> {
         self.process_element(value)
     }
 
@@ -107,7 +107,7 @@ impl<'a, 'se> SerializeTupleStruct for SequenceSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_field<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> {
         self.process_element(value)
     }
 
@@ -120,7 +120,7 @@ impl<'a, 'se> SerializeTupleVariant for SequenceSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_field<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> {
         self.process_element(value)
     }
 
@@ -141,14 +141,14 @@ pub struct MapSerializer<'a, 'se> {
 }
 
 impl<'a, 'se> MapSerializer<'a, 'se> {
-    fn process_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Errors> where T: Serialize {
+    fn process_key<T: Serialize + ?Sized>(&mut self, key: &T) -> Result<(), Errors> {
         T::serialize(key, &mut *self.ser)?;
         self.ser.writer.write_str(":\n")?;
         self.ser.incr_level();
         write_indent(self.ser.level, self.ser.writer)
     }
 
-    fn process_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Errors> where T: Serialize {
+    fn process_value<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Errors> {
         T::serialize(value, &mut *self.ser)?;
         self.ser.decr_level();
         self.ser.writer.write_char('\n')?;
@@ -164,11 +164,11 @@ impl<'a, 'se> SerializeMap for MapSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_key<T: Serialize + ?Sized>(&mut self, key: &T) -> Result<(), Self::Error> {
         self.process_key(key)
     }
 
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_value<T: Serialize + ?Sized>(&mut self, value: &T) -> Result<(), Self::Error> {
         self.process_value(value)
     }
 
@@ -181,7 +181,7 @@ impl<'a, 'se> SerializeStruct for MapSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_field<T: Serialize + ?Sized>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error> {
         self.process_key(key)?;
         self.process_value(value)
     }
@@ -195,7 +195,7 @@ impl<'a, 'se> SerializeStructVariant for MapSerializer<'a, 'se> {
     type Ok = ();
     type Error = Errors;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error> where T: Serialize {
+    fn serialize_field<T: Serialize + ?Sized>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error> {
         self.process_key(key)?;
         self.process_value(value)
     }
@@ -343,7 +343,7 @@ impl<'a, 'se> Serializer for &'a mut YamlSerializer<'se> {
         Ok(())
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error> where T: Serialize {
+    fn serialize_some<T: Serialize + ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error> {
         value.serialize(self)
     }
 
@@ -360,12 +360,12 @@ impl<'a, 'se> Serializer for &'a mut YamlSerializer<'se> {
         self.serialize_none()
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok, Self::Error> where T: Serialize {
+    fn serialize_newtype_struct<T: Serialize + ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok, Self::Error> {
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(self, _name: &'static str, _variant_index: u32, variant: &'static str, value: &T) -> Result<Self::Ok, Self::Error> where T: Serialize {
-        write!(self.writer, "{}:\n", variant)?;
+    fn serialize_newtype_variant<T: Serialize + ?Sized>(self, _name: &'static str, _variant_index: u32, variant: &'static str, value: &T) -> Result<Self::Ok, Self::Error> {
+        writeln!(self.writer, "{}:", variant)?;
         self.incr_level();
         write_indent(self.level, self.writer)?;
         let result = value.serialize(&mut *self);
@@ -401,7 +401,7 @@ impl<'a, 'se> Serializer for &'a mut YamlSerializer<'se> {
             write!(self.writer, "{}: ", variant)?;
             self.serialize_seq(Some(len))
         } else {
-            write!(self.writer, "{}:\n", variant)?;
+            writeln!(self.writer, "{}:", variant)?;
             self.incr_level();
             write_indent(self.level, self.writer)?;
             self.serialize_seq(Some(len))
@@ -419,7 +419,7 @@ impl<'a, 'se> Serializer for &'a mut YamlSerializer<'se> {
     }
 
     fn serialize_struct_variant(self, name: &'static str, _variant_index: u32, variant: &'static str, len: usize) -> Result<Self::SerializeStructVariant, Self::Error> {
-        write!(self.writer, "{}:\n", variant)?;
+        writeln!(self.writer, "{}:", variant)?;
         self.incr_level();
         write_indent(self.level, self.writer)?;
         self.serialize_struct(name, len)
