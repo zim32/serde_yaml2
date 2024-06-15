@@ -134,23 +134,6 @@ impl<'de, 'a> VariantAccess<'de> for EventsSequenceAccess<'a, 'de> {
 }
 
 
-struct YamlValueAccess<'a, 'de, Y: Iterator<Item = Yaml>> {
-    deserializer: &'a mut YamlDeserializer<'de>,
-    yaml: Y,
-}
-
-impl<'de, 'a, Y: Iterator<Item = Yaml>> SeqAccess<'de> for YamlValueAccess<'a, 'de, Y> {
-    type Error = serde::de::value::Error;
-
-    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error> where T: DeserializeSeed<'de> {
-        if let Some(_) = self.yaml.next() {
-            seed.deserialize(&mut *self.deserializer).map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-}
-
 macro_rules! deserialize_number {
     ($self:ident, $visitor:ident, $visit:ident, $type:ty) => {
         match $self.parser.next_token() {
