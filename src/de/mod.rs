@@ -21,6 +21,7 @@ impl Display for MarkerWrapper {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Error, Debug)]
 enum Errors<'a> {
     #[error("Unexpected scalar value at position {2}. Expected: {0}, got: {1}")]
@@ -51,6 +52,7 @@ impl<'a> Errors<'a> {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl<'a> Into<serde::de::value::Error> for Errors<'a> {
     fn into(self) -> serde::de::value::Error {
         serde::de::value::Error::custom(self.to_string())
@@ -158,6 +160,7 @@ pub struct YamlDeserializer<'de> {
 }
 
 impl<'de> YamlDeserializer<'de> {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(data: &'de str) -> Result<Self, serde::de::value::Error> {
         let mut parser = Parser::new_from_str(data);
 
