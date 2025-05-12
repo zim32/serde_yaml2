@@ -390,8 +390,8 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
                     visitor.visit_some(self)
                 }
             },
-            Ok((event, marker)) => {
-                Err(Errors::unexpected_event_error("Scalar", event.clone(), *marker).into())
+            Ok((_event, _marker)) => {
+                visitor.visit_some(self)
             },
             Err(scan_error) => {
                 Err(Errors::scan_error(*scan_error.marker()).into())
