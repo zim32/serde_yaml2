@@ -354,8 +354,18 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
         }
     }
 
-    fn deserialize_str<V>(self, _visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
-        Err(Self::Error::custom("Deserialization of &str is not supported"))
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+        match self.parser.next_token() {
+            Ok((Event::Scalar(value, ..), ..), ..) => {
+                return visitor.visit_str(&value);
+            },
+            Ok((event, marker)) => {
+                Err(Errors::unexpected_event_error("Scalar", event, marker).into())
+            },
+            Err(scan_error) => {
+                Err(Errors::scan_error(*scan_error.marker()).into())
+            },
+        }
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
