@@ -179,7 +179,7 @@ impl<'de> YamlDeserializer<'de> {
     }
 }
 
-impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
+impl<'de> Deserializer<'de> for &mut YamlDeserializer<'de> {
     type Error = serde::de::value::Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
@@ -274,10 +274,10 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
             Ok((Event::Scalar(value, TScalarStyle::Plain, ..), marker), ..) => {
                 match value.as_str() {
                     "true" => {
-                        return visitor.visit_bool(true);
+                        visitor.visit_bool(true)
                     },
                     "false" => {
-                        return visitor.visit_bool(false);
+                        visitor.visit_bool(false)
                     },
                     _ => {
                         Err(Errors::unexpected_scalar_value_error("'true' of 'false'", &value, marker).into())
@@ -361,7 +361,7 @@ impl<'de, 'a> Deserializer<'de> for &'a mut YamlDeserializer<'de> {
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
         match self.parser.next_token() {
             Ok((Event::Scalar(value, ..), ..), ..) => {
-                return visitor.visit_string(value);
+                visitor.visit_string(value)
             },
             Ok((event, marker)) => {
                 Err(Errors::unexpected_event_error("Scalar", event, marker).into())
