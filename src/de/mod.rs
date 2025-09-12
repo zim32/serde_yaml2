@@ -7,9 +7,9 @@ use yaml_rust2::parser::{Parser};
 use thiserror::Error;
 use yaml_rust2::scanner::{Marker, TScalarStyle};
 
-pub fn from_str<'de, T: Deserialize<'de>>(data: &'de str) -> Result<T, serde::de::value::Error> {
+pub fn from_str<'de, T: Deserialize<'de>>(data: &'de str) -> Result<T, crate::Error> {
     let deserializer = &mut YamlDeserializer::from_str(data)?;
-    T::deserialize(deserializer)
+    Ok(T::deserialize(deserializer)?)
 }
 
 #[derive(Debug)]
